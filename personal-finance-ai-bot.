@@ -1,0 +1,93 @@
+# Save this file as app.py
+import streamlit as st
+import pandas as pd
+
+# --- APPLICATION SETUP & CONFIG ---
+st.set_page_config(page_title="AI Finance Advisor", page_icon="💰", layout="wide")
+
+# --- MOCK DATA LAYER (Simulating a database fetch) ---
+USER_PROFILE = {
+    "name": "Alex",
+    "checking_balance": 2450.00,
+    "savings_balance": 12000.00,
+    "monthly_income": 4500.00,
+    "savings_goal": 15000.00,
+    "goal_name": "Emergency Fund Setup"
+}
+
+EXPENSES_DATA = pd.DataFrame({
+    "Category": ["Rent", "Groceries", "Utilities", "Dining Out", "Transport", "Subscriptions"],
+    "Amount Spent ($)": [1500, 450, 200, 350, 150, 80]
+})
+
+# --- COMPLIANCE DISCLAIMER ENGINE ---
+def add_compliance_disclaimer(response_text):
+    disclaimer = (
+        "\n\n---\n*⚠️ **Disclaimer:** I am an AI Personal Finance Assistant, not a certified financial advisor. "
+        "This response is generated based on simulated data and is intended solely for educational and general budgeting purposes.*"
+    )
+    return response_text + disclaimer
+
+# --- AI SIMULATION LOGIC (RAG Mocking) ---
+def generate_ai_response(user_prompt):
+    prompt_lower = user_prompt.lower()
+    total_spent = EXPENSES_DATA["Amount Spent ($)"].sum()
+    remaining_budget = USER_PROFILE["monthly_income"] - total_spent
+    
+    # Context-aware rule parsing mimicking LLM behavior with access to user records
+    if "balance" in prompt_lower or "how much money" in prompt_lower:
+        base = f"Hi {USER_PROFILE['name']}, your current liquid net worth across monitored accounts stands at **${USER_PROFILE['checking_balance'] + USER_PROFILE['savings_balance']:.2f}**.\n\n- **Checking:** ${USER_PROFILE['checking_balance']:.2f}\n- **Savings:** ${USER_PROFILE['savings_balance']:.2f}"
+    elif "spend" in prompt_lower or "expense" in prompt_lower or "cost" in prompt_lower:
+        highest_expense = EXPENSES_DATA.loc[EXPENSES_DATA["Amount Spent ($)"].idxmax()]
+        base = f"You have spent a total of **${total_spent:.2f}** this month out of your ${USER_PROFILE['monthly_income']:.2f} income. Your single highest outlay category is **{highest_expense['Category']}** at ${highest_expense['Amount Spent ($)']:.2f}."
+    elif "goal" in prompt_lower or "save" in prompt_lower or "emergency" in prompt_lower:
+        progress = (USER_PROFILE['savings_balance'] / USER_PROFILE['savings_goal']) * 100
+        base = f"For your goal **'{USER_PROFILE['goal_name']}'**, you are currently at **{progress:.1f}%** of completion. You have saved ${USER_PROFILE['savings_balance']:.2f} towards your ${USER_PROFILE['savings_goal']:.2f} target limit. You need ${USER_PROFILE['savings_goal'] - USER_PROFILE['savings_balance']:.2f} more to fulfill this milestone."
+    else:
+        base = "I can help you review your financial health! Try asking me about your balances, monthly spending breakdown, or progress toward your savings goals."
+        
+    return add_compliance_disclaimer(base)
+
+# --- USER INTERFACE LAYOUT ---
+st.title("🤖 AI Personal Finance Advisor")
+st.write("Welcome to your local smart wealth coach dashboard.")
+st.markdown("---")
+
+# Layout Column Splitting
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.subheader("📊 Your Financial Snapshot")
+    
+    # Metric Grid
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Checking Account", f"${USER_PROFILE['checking_balance']:.2f}")
+    m2.metric("Savings Account", f"${USER_PROFILE['savings_balance']:.2f}")
+    m3.metric("Monthly Net Income", f"${USER_PROFILE['monthly_income']:.2f}")
+    
+    # Financial Visualizations
+    st.write("#### Spending by Category")
+    st.bar_chart(data=EXPENSES_DATA, x="Category", y="Amount Spent ($)", color="#1F77B4")
+
+with col2:
+    st.subheader("💬 Chat with your Advisor")
+    st.write("Ask questions about your budget, tracking metrics, or optimization avenues below:")
+    
+    # Interactive Chat Window Simulation
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{"role": "assistant", "content": add_compliance_disclaimer("Hello! I am your financial assistant. How can I help optimize your money strategies today?")}]
+        
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+            
+    if user_query := st.chat_input("e.g., Am I on track for my savings goal?"):
+        with st.chat_message("user"):
+            st.markdown(user_query)
+        st.session_state.messages.append({"role": "user", "content": user_query})
+        
+        # Process and deliver context-aware message response
+        ai_reply = generate_ai_response(user_query)
+        with st.chat_message("assistant"):
+            st.markdown(ai_reply)
+        st.session_state.messages.append({"role": "assistant", "content": ai_reply})
